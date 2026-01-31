@@ -9,7 +9,6 @@ from YT_Downloader import (
     download_video,
     download_audio
 )
-from playlist_downloader import download_playlist
 
 selected_folder = ""
 video_itags = {}
@@ -53,8 +52,12 @@ def load_qualities():
     except Exception as e:
         status_label.config(text=f"Błąd: {e}")
 
-def update_progress(percent):
-    progress_bar['value'] = percent
+def update_download_progress(percent):
+    progress_bar_download['value'] = percent
+    root.update_idletasks()
+
+def update_merge_progress(percent):
+    progress_bar_merge['value'] = percent
     root.update_idletasks()
 
 def threaded_download():
@@ -76,26 +79,31 @@ def threaded_download():
                 status_label.config(text="Wybierz jakość wideo!")
                 return
             itag = video_itags[selected]
-            download_video(link, itag, selected_folder, update_progress)
+            download_video(
+                link,
+                itag,
+                selected_folder,
+                progress_callback=update_download_progress,
+                merge_callback=update_merge_progress
+            )
 
         elif mode == "audio":
             if not selected:
                 status_label.config(text="Wybierz jakość audio!")
                 return
             itag = audio_itags[selected]
-            download_audio(link, itag, selected_folder, update_progress)
-
-        elif mode == "playlist":
-            download_playlist(link, selected_folder, update_progress)
+            download_audio(link, itag, selected_folder, update_download_progress)
 
         status_label.config(text="Zakończono!")
-        progress_bar['value'] = 100
+        progress_bar_download['value'] = 100
+        progress_bar_merge['value'] = 100
 
     except Exception as e:
         status_label.config(text=f"Błąd: {e}")
 
 def start_download():
-    progress_bar['value'] = 0
+    progress_bar_download['value'] = 0
+    progress_bar_merge['value'] = 0
     status_label.config(text="Pobieranie...")
     t = threading.Thread(target=threaded_download)
     t.daemon = True
@@ -116,7 +124,6 @@ mode_frame.pack(pady=5)
 
 ttk.Radiobutton(mode_frame, text="Wideo", variable=mode_var, value="video").pack(side=tk.LEFT, padx=5)
 ttk.Radiobutton(mode_frame, text="Audio (mp3)", variable=mode_var, value="audio").pack(side=tk.LEFT, padx=5)
-ttk.Radiobutton(mode_frame, text="Playlista", variable=mode_var, value="playlist").pack(side=tk.LEFT, padx=5)
 
 tk.Button(root, text="Wczytaj dostępne jakości", command=load_qualities).pack(pady=5)
 
@@ -128,8 +135,13 @@ tk.Button(root, text="Wybierz folder zapisu", command=choose_folder).pack(pady=5
 folder_label = tk.Label(root, text="Folder: nie wybrano")
 folder_label.pack()
 
-progress_bar = ttk.Progressbar(root, length=350)
-progress_bar.pack(pady=10)
+tk.Label(root, text="Postęp pobierania:").pack()
+progress_bar_download = ttk.Progressbar(root, length=350)
+progress_bar_download.pack(pady=5)
+
+tk.Label(root, text="Postęp łączenia audio + video:").pack()
+progress_bar_merge = ttk.Progressbar(root, length=350)
+progress_bar_merge.pack(pady=5)
 
 tk.Button(root, text="Pobierz", command=start_download).pack(pady=10)
 
